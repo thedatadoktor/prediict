@@ -212,13 +212,17 @@ def make_predictions(args):
     
     # Create ensemble
     ensemble = EnsembleModel(
-        models=[xgb_model, lgb_model],
-        weights=[0.5, 0.5]
+        models=[xgb_model, lgb_model]
     )
     
-    # Load historical data
-    collector = FootballDataCollector()
-    historical_data = collector.load_data()
+    # Load historical data - try CSV first for better feature engineering
+    csv_collector = FootballDataCSVCollector()
+    historical_data = csv_collector.load_data()
+    
+    if historical_data.empty:
+        print("No CSV historical data found, trying API data...")
+        collector = FootballDataCollector()
+        historical_data = collector.load_data()
     
     if historical_data.empty:
         print("No historical data found!")
@@ -233,9 +237,11 @@ def make_predictions(args):
     leagues = args.leagues.split(",") if args.leagues else ["PL"]
     days_ahead = args.days or 7
     
+    # Use API collector for upcoming matches
+    api_collector = FootballDataCollector()
     all_upcoming = []
     for league in leagues:
-        upcoming = collector.get_upcoming_matches(league, days_ahead=days_ahead)
+        upcoming = api_collector.get_upcoming_matches(league, days_ahead=days_ahead)
         if not upcoming.empty:
             all_upcoming.append(upcoming)
     
