@@ -38,29 +38,56 @@ LEAGUES = {
 # Model Configuration
 MODEL_PARAMS = {
     "xgboost": {
-        "n_estimators": 200,
-        "max_depth": 6,
-        "learning_rate": 0.05,
-        "subsample": 0.8,
-        "colsample_bytree": 0.8,
+        "n_estimators": 400,
+        "max_depth": 8,
+        "learning_rate": 0.03,
+        "subsample": 0.85,
+        "colsample_bytree": 0.85,
+        "min_child_weight": 3,
+        "gamma": 0.1,
+        "reg_alpha": 0.05,
+        "reg_lambda": 1.0,
         "random_state": 42
     },
     "lightgbm": {
-        "n_estimators": 200,
-        "max_depth": 6,
-        "learning_rate": 0.05,
-        "num_leaves": 31,
+        "n_estimators": 400,
+        "max_depth": 8,
+        "learning_rate": 0.03,
+        "num_leaves": 50,
+        "min_child_samples": 20,
+        "subsample": 0.85,
+        "colsample_bytree": 0.85,
+        "reg_alpha": 0.05,
+        "reg_lambda": 1.0,
         "random_state": 42
     }
 }
+
+# Ensemble Configuration
+ENSEMBLE_WEIGHTS = {
+    "xgboost": 0.55,
+    "lightgbm": 0.45
+}
+
+# Hyperparameter Tuning
+TUNING_CONFIG = {
+    "n_iter": 50,  # Number of parameter combinations to try
+    "cv_folds": 5,  # Cross-validation folds
+    "random_state": 42
+}
+
+# Probability Calibration
+USE_CALIBRATION = True
+CALIBRATION_METHOD = "isotonic"  # "isotonic" or "sigmoid"
 
 # Feature Engineering
 FORM_MATCHES = 5  # Number of recent matches for form calculation
 HEAD_TO_HEAD_MATCHES = 10  # Number of H2H matches to consider
 
 # Prediction thresholds
-MIN_CONFIDENCE = 0.55  # Minimum probability to consider a prediction
+MIN_CONFIDENCE = 0.60  # Minimum probability to consider a prediction (increased)
 VALUE_BET_THRESHOLD = 0.05  # Minimum edge over bookmaker odds (5%)
+HIGH_CONFIDENCE_THRESHOLD = 0.70  # High confidence predictions
 
 # Training/Testing split
 TEST_SIZE = 0.2

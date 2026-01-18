@@ -127,39 +127,50 @@ def train_models(args):
     
     print(f"\nDataset: {len(df_features)} matches with {len(engineer.get_feature_columns())} features")
     
-    # Split data
+    # Split data into train, validation, and test
     train_df, test_df = preprocessor.split_train_test(df_features, test_size=0.2, by_date=True)
+    
+    # Further split training into train and validation for calibration
+    val_split_idx = int(len(train_df) * 0.85)
+    train_subset = train_df.iloc[:val_split_idx]
+    val_subset = train_df.iloc[val_split_idx:]
     
     # Prepare training data
     feature_cols = engineer.get_feature_columns()
-    X_train = train_df[feature_cols]
-    y_train = train_df["result"].map({"H": 0, "D": 1, "A": 2}).values
+    X_train = train_subset[feature_cols]
+    y_train = train_subset["result"].map({"H": 0, "D": 1, "A": 2}).values
+    
+    X_val = val_subset[feature_cols]
+    y_val = val_subset["result"].map({"H": 0, "D": 1, "A": 2}).values
     
     X_test = test_df[feature_cols]
     y_test = test_df["result"].map({"H": 0, "D": 1, "A": 2}).values
     
-    # Train XGBoost
+    print(f"Training set: {len(train_subset)} matches ({train_subset['date'].min()} to {train_subset['date'].max()})")
+    print(f"Validation set: {len(val_subset)} matches ({val_subset['date'].min()} to {val_subset['date'].max()})")
+    print(f"Testing set: {len(test_df)} matches ({test_df['date'].min()} to {test_df['date'].max()})")
+    
+    # Train XGBoost with calibration
     print("\n" + "-"*80)
     xgb_model = XGBoostModel()
-    xgb_model.train(X_train, y_train)
+    xgb_model.train(X_train, y_train, X_val, y_val)
     xgb_results = xgb_model.evaluate(X_test, y_test)
     print(f"\nXGBoost Test Accuracy: {xgb_results['accuracy']:.2%}")
     print(f"XGBoost Log Loss: {xgb_results['log_loss']:.3f}")
     
-    # Train LightGBM
+    # Train LightGBM with calibration
     print("\n" + "-"*80)
     lgb_model = LightGBMModel()
-    lgb_model.train(X_train, y_train)
+    lgb_model.train(X_train, y_train, X_val, y_val)
     lgb_results = lgb_model.evaluate(X_test, y_test)
     print(f"\nLightGBM Test Accuracy: {lgb_results['accuracy']:.2%}")
     print(f"LightGBM Log Loss: {lgb_results['log_loss']:.3f}")
     
-    # Create ensemble
+    # Create ensemble with optimized weights
     print("\n" + "-"*80)
     print("\nCreating ensemble model...")
     ensemble = EnsembleModel(
         models=[xgb_model, lgb_model],
-        weights=[0.5, 0.5],
         name="ensemble_model"
     )
     ensemble_results = ensemble.evaluate(X_test, y_test)

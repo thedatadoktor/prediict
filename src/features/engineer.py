@@ -93,50 +93,52 @@ class FeatureEngineer:
         
         return df
     
-    def _calculate_team_form(self, matches, team):
-        """Calculate form metrics for a team"""
+    def _calculate_team_form(self, matches, team, weighted=True):
+        """Calculate form metrics for a team with optional exponential weighting"""
         points = 0
         goals_scored = 0
         goals_conceded = 0
+        weights = []
+        
+        # Exponential decay weights (more recent = higher weight)
+        if weighted:
+            for i in range(len(matches)):
+                # Weight = 0.5^(n-i-1) where n is total matches, i is index
+                weight = 0.5 ** (len(matches) - i - 1)
+                weights.append(weight)
+        else:
+            weights = [1.0] * len(matches)
         wins = 0
         draws = 0
         losses = 0
         
-        for _, match in matches.iterrows():
+        for idx, match in enumerate(matches.iterrows()):
+            _, match = match
+            weight = weights[idx]
             is_home = match["home_team"] == team
             
             if is_home:
-                goals_scored += match["home_score"]
-                goals_conceded += match["away_score"]
+                goals_scored += match["home_score"] * weight
+                goals_conceded += match["away_score"] * weight
                 
                 if match["result"] == "H":
-                    points += 3
-                    wins += 1
+                    points += 3 * weight
+                    wins += weight
                 elif match["result"] == "D":
-                    points += 1
-                    draws += 1
+                    points += 1 * weight
+                    draws += weight
                 else:
-                    losses += 1
-            else:
-                goals_scored += match["away_score"]
-                goals_conceded += match["home_score"]
-                
-                if match["result"] == "A":
-                    points += 3
-                    wins += 1
-                elif match["result"] == "D":
-                    points += 1
-                    draws += 1
-                else:
-                    losses += 1
+                    losses += weight
+        
+        total_weight = sum(weights)
         
         return {
-            "form_points": points,
-            "form_goals_scored": goals_scored,
-            "form_goals_conceded": goals_conceded,
-            "form_wins": wins,
-            "form_draws": draws,
-            "form_losses": losses
+            "form_points": points / total_weight if total_weight > 0 else 0,
+            "form_goals_scored": goals_scored / total_weight if total_weight > 0 else 0,
+            "form_goals_conceded": goals_conceded / total_weight if total_weight > 0 else 0,
+            "form_wins": wins / total_weight if total_weight > 0 else 0,
+            "form_draws": draws / total_weight if total_weight > 0 else 0,
+            "form_losses": losses / total_weight if total_weight > 0 else 0
         }
     
     def _create_h2h_features(self, df):
@@ -311,6 +313,46 @@ class FeatureEngineer:
         df["form_diff"] = df["home_form_points"] - df["away_form_points"]
         df["strength_diff"] = df["home_win_rate"] - df["away_win_rate"]
         df["goals_diff"] = df["home_avg_goals"] - df["away_avg_goals"]
+        df["rest_advantage"] = df["home_days_rest"] - df["away_days_rest"]
+        
+        # Home advantage calculation (team-specific)
+        df["home_advantage"] = np.nan
+        for team in df["home_team"].unique():
+            home_matches = df[df["home_team"] == team]
+            away_matches = df[df["away_team"] == team]
+            
+            if len(home_matches) > 0 and len(away_matches) > 0:
+                # Calculate win rate difference
+                home_win_rate = (home_matches["result"] == "H").mean() if len(home_matches) > 0 else 0
+                away_win_rate = (away_matches["result"] == "A").mean() if len(away_matches) > 0 else 0
+                home_adv = home_win_rate - away_win_rate
+                
+                # Apply to all matches where this team is home
+                df.loc[df["home_team"] == team, "home_advantage"] = home_adv
+        
+        # Season phase (early/mid/late season performance)
+        df["match_date"] = pd.to_datetime(df["date"])
+        df["month"] = df["match_date"].dt.month
+        df["season_phase"] = np.nan
+        df.loc[df["month"].isin([8, 9, 10]), "season_phase"] = 0  # Early season
+        df.loc[df["month"].isin([11, 12, 1, 2]), "season_phase"] = 1  # Mid season
+        df.loc[df["month"].isin([3, 4, 5, 6]), "season_phase"] = 2  # Late season
+        
+        # Form momentum (improving vs declining)
+        df["home_form_momentum"] = np.nan
+        df["away_form_momentum"] = np.nan
+        
+        for idx in range(len(df)):
+            match = df.iloc[idx]
+            if idx > 2:  # Need at least 3 previous matches
+                # Compare recent 2 matches vs previous 3 matches
+                recent_home_form = df.iloc[max(0, idx-2):idx]["home_form_points"].mean()
+                older_home_form = df.iloc[max(0, idx-5):max(0, idx-2)]["home_form_points"].mean()
+                df.at[idx, "home_form_momentum"] = recent_home_form - older_home_form if not np.isnan(recent_home_form) and not np.isnan(older_home_form) else 0
+                
+                recent_away_form = df.iloc[max(0, idx-2):idx]["away_form_points"].mean()
+                older_away_form = df.iloc[max(0, idx-5):max(0, idx-2)]["away_form_points"].mean()
+                df.at[idx, "away_form_momentum"] = recent_away_form - older_away_form if not np.isnan(recent_away_form) and not np.isnan(older_away_form) else 0
         
         return df
     
@@ -332,7 +374,9 @@ class FeatureEngineer:
             # Context features
             "home_days_rest", "away_days_rest",
             # Derived features
-            "form_diff", "strength_diff", "goals_diff"
+            "form_diff", "strength_diff", "goals_diff", "rest_advantage",
+            # Advanced features
+            "home_advantage", "season_phase", "home_form_momentum", "away_form_momentum"
         ]
 
 
