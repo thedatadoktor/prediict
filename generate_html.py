@@ -316,7 +316,7 @@ html = f"""<!DOCTYPE html>
             <h1>⚽ Football Value Bets</h1>
             <div class="subtitle">AI-Powered Predictions with Proven Edge</div>
             <div class="update-time">📅 Updated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</div>
-            <div class="visitor-count">👥 <span id="visitor-count">Loading...</span> visitors today</div>
+            <div class="visitor-count">👥 <span id="visitor-count">Loading...</span></div>
         </div>
         
         <div class="stats-bar">
@@ -459,7 +459,7 @@ html += f"""
                 localStorage.setItem(visitorKey, count.toString());
                 sessionStorage.setItem(userVisitKey, 'true');
             }}
-            document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor' : ' visitors');
+            document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor today' : ' visitors today');
         }}
         
         function submitFeedback(type) {{

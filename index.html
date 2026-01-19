@@ -283,7 +283,7 @@
             <h1>⚽ Football Value Bets</h1>
             <div class="subtitle">AI-Powered Predictions with Proven Edge</div>
             <div class="update-time">📅 Updated: January 19, 2026 at 04:16 PM</div>
-            <div class="visitor-count">👥 <span id="visitor-count">Loading...</span> visitors today</div>
+            <div class="visitor-count">👥 <span id="visitor-count">Loading...</span></div>
         </div>
         
         <div class="stats-bar">
@@ -682,7 +682,7 @@
             }
             
             // Display count
-            document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor' : ' visitors');
+            document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor today' : ' visitors today');
             
             // Clean up old dates (keep last 7 days)
             cleanupOldCounts();
