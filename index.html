@@ -703,11 +703,11 @@
                 localStorage.setItem(visitorKey, count.toString());
                 sessionStorage.setItem(userVisitKey, 'true');
                 
-                // Send to CountAPI.xyz for global tracking
+                // Increment global counter on CounterAPI.dev
                 try {
-                    await fetch('https://api.countapi.xyz/hit/prediict-football/total-visitors');
+                    fetch('https://api.counterapi.dev/v2/prediict/prediict-visitors/up').catch(e => console.log('Counter update queued'));
                 } catch (error) {
-                    console.error('Error updating global visitor count:', error);
+                    // Silent fail - not critical
                 }
             }
             
@@ -734,23 +734,22 @@
             }
         }
         
-        // Load analytics from CountAPI.xyz (free, no signup required)
+        // Load analytics from CounterAPI.dev (free, public workspace)
         async function loadAnalytics() {
             try {
-                // Fetch all counters
                 const [visitorsRes, helpfulRes, notHelpfulRes] = await Promise.all([
-                    fetch('https://api.countapi.xyz/get/prediict-football/total-visitors'),
-                    fetch('https://api.countapi.xyz/get/prediict-football/feedback-helpful'),
-                    fetch('https://api.countapi.xyz/get/prediict-football/feedback-not-helpful')
+                    fetch('https://api.counterapi.dev/v2/prediict/prediict-visitors'),
+                    fetch('https://api.counterapi.dev/v2/prediict/feedback-helpful'),
+                    fetch('https://api.counterapi.dev/v2/prediict/feedback-not-helpful')
                 ]);
                 
                 const visitors = await visitorsRes.json();
                 const helpful = await helpfulRes.json();
                 const notHelpful = await notHelpfulRes.json();
                 
-                const totalVisitors = visitors.value || 0;
-                const helpfulCount = helpful.value || 0;
-                const notHelpfulCount = notHelpful.value || 0;
+                const totalVisitors = visitors.count || 0;
+                const helpfulCount = helpful.count || 0;
+                const notHelpfulCount = notHelpful.count || 0;
                 
                 document.getElementById('total-visitors').textContent = totalVisitors.toLocaleString();
                 document.getElementById('helpful-count').textContent = helpfulCount.toLocaleString();
@@ -761,7 +760,6 @@
                 document.getElementById('satisfaction-rate').textContent = rate + '%';
             } catch (error) {
                 console.error('Error loading analytics:', error);
-                // Show zeros on error
                 document.getElementById('total-visitors').textContent = '0';
                 document.getElementById('helpful-count').textContent = '0';
                 document.getElementById('not-helpful-count').textContent = '0';
@@ -792,12 +790,12 @@
             feedback[type]++;
             localStorage.setItem(feedbackKey, JSON.stringify(feedback));
             
-            // Send to CountAPI.xyz
+            // Send to CounterAPI.dev
             try {
-                const key = type === 'helpful' ? 'feedback-helpful' : 'feedback-not-helpful';
-                await fetch(`https://api.countapi.xyz/hit/prediict-football/${key}`);
+                const counterName = type === 'helpful' ? 'feedback-helpful' : 'feedback-not-helpful';
+                await fetch(`https://api.counterapi.dev/v2/prediict/${counterName}/up`);
                 
-                // Refresh analytics display
+                // Refresh analytics display after a short delay
                 setTimeout(loadAnalytics, 500);
             } catch (error) {
                 console.error('Error submitting feedback:', error);
