@@ -305,6 +305,29 @@
             </div>
         </div>
 
+        <!-- Analytics Dashboard -->
+        <div style="background: rgba(255,255,255,0.95); padding: 25px; border-radius: 15px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #333; text-align: center; margin-bottom: 20px;">📊 Platform Analytics</h2>
+            <div class="stats-bar" style="margin-bottom: 0;">
+                <div class="stat-card">
+                    <div class="number" id="total-visitors">-</div>
+                    <div class="label">Total Visitors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="helpful-count">-</div>
+                    <div class="label">👍 Helpful</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="not-helpful-count">-</div>
+                    <div class="label">👎 Not Helpful</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="satisfaction-rate">-</div>
+                    <div class="label">Satisfaction Rate</div>
+                </div>
+            </div>
+        </div>
+
         <div class="bet-card">
             <div class="bet-header">
                 <div class="match-info">
@@ -665,7 +688,7 @@
     
     <script>
         // Simple visitor counter using localStorage
-        function updateVisitorCount() {
+        async function updateVisitorCount() {
             // Get today's date as key
             const today = new Date().toDateString();
             const visitorKey = 'visitor_' + today;
@@ -679,6 +702,13 @@
                 count++;
                 localStorage.setItem(visitorKey, count.toString());
                 sessionStorage.setItem(userVisitKey, 'true');
+                
+                // Send to CountAPI.xyz for global tracking
+                try {
+                    await fetch('https://api.countapi.xyz/hit/prediict-football/total-visitors');
+                } catch (error) {
+                    console.error('Error updating global visitor count:', error);
+                }
             }
             
             // Display count
@@ -704,8 +734,43 @@
             }
         }
         
+        // Load analytics from CountAPI.xyz (free, no signup required)
+        async function loadAnalytics() {
+            try {
+                // Fetch all counters
+                const [visitorsRes, helpfulRes, notHelpfulRes] = await Promise.all([
+                    fetch('https://api.countapi.xyz/get/prediict-football/total-visitors'),
+                    fetch('https://api.countapi.xyz/get/prediict-football/feedback-helpful'),
+                    fetch('https://api.countapi.xyz/get/prediict-football/feedback-not-helpful')
+                ]);
+                
+                const visitors = await visitorsRes.json();
+                const helpful = await helpfulRes.json();
+                const notHelpful = await notHelpfulRes.json();
+                
+                const totalVisitors = visitors.value || 0;
+                const helpfulCount = helpful.value || 0;
+                const notHelpfulCount = notHelpful.value || 0;
+                
+                document.getElementById('total-visitors').textContent = totalVisitors.toLocaleString();
+                document.getElementById('helpful-count').textContent = helpfulCount.toLocaleString();
+                document.getElementById('not-helpful-count').textContent = notHelpfulCount.toLocaleString();
+                
+                const total = helpfulCount + notHelpfulCount;
+                const rate = total > 0 ? Math.round((helpfulCount / total) * 100) : 0;
+                document.getElementById('satisfaction-rate').textContent = rate + '%';
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                // Show zeros on error
+                document.getElementById('total-visitors').textContent = '0';
+                document.getElementById('helpful-count').textContent = '0';
+                document.getElementById('not-helpful-count').textContent = '0';
+                document.getElementById('satisfaction-rate').textContent = '0%';
+            }
+        }
+        
         // Feedback system
-        function submitFeedback(type) {
+        async function submitFeedback(type) {
             // Hide buttons
             const buttons = document.querySelector('.feedback-buttons');
             const thankYou = document.getElementById('thank-you-message');
@@ -727,19 +792,25 @@
             feedback[type]++;
             localStorage.setItem(feedbackKey, JSON.stringify(feedback));
             
-            // Optional: Send to Google Analytics if available
-            if (typeof gtag !== 'undefined') {
-                gtag('event', 'feedback', {
-                    'event_category': 'User Feedback',
-                    'event_label': type,
-                    'value': 1
-                });
+            // Send to CountAPI.xyz
+            try {
+                const key = type === 'helpful' ? 'feedback-helpful' : 'feedback-not-helpful';
+                await fetch(`https://api.countapi.xyz/hit/prediict-football/${key}`);
+                
+                // Refresh analytics display
+                setTimeout(loadAnalytics, 500);
+            } catch (error) {
+                console.error('Error submitting feedback:', error);
             }
+            
+            // Mark feedback given for today
+            sessionStorage.setItem('feedback_given_' + new Date().toISOString().split('T')[0], 'true');
         }
         
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             updateVisitorCount();
+            loadAnalytics();
             
             // Check if user already gave feedback today
             const today = new Date().toISOString().split('T')[0];
