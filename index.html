@@ -687,8 +687,8 @@
     </div>
     
     <script>
-        // Simple visitor counter using localStorage
-        async function updateVisitorCount() {
+        // Simple visitor counter - display only (centralized count via CounterAPI)
+        function updateVisitorCount() {
             // Get today's date as key
             const today = new Date().toDateString();
             const visitorKey = 'visitor_' + today;
@@ -711,7 +711,7 @@
                 }
             }
             
-            // Display count
+            // Display local count (just for this browser)
             document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor today' : ' visitors today');
             
             // Clean up old dates (keep last 7 days)
@@ -770,6 +770,8 @@
         
         // Feedback system
         async function submitFeedback(type) {
+            console.log('Submitting feedback:', type);
+            
             // Hide buttons
             const buttons = document.querySelector('.feedback-buttons');
             const thankYou = document.getElementById('thank-you-message');
@@ -785,21 +787,16 @@
                 thankYou.style.background = '#f59e0b';
             }
             
-            // Store feedback in localStorage
-            const feedbackKey = 'feedback_' + new Date().toISOString().split('T')[0];
-            const feedback = JSON.parse(localStorage.getItem(feedbackKey) || '{"helpful": 0, "not-helpful": 0}');
-            feedback[type]++;
-            localStorage.setItem(feedbackKey, JSON.stringify(feedback));
-            
             // Send to CounterAPI.dev
             try {
                 const counterName = type === 'helpful' ? 'feedback-helpful' : 'feedback-not-helpful';
-                await fetch(`https://api.counterapi.dev/v2/prediict/${counterName}/up`);
+                const response = await fetch(`https://api.counterapi.dev/v2/prediict/${counterName}/up`);
+                console.log('Feedback submitted successfully:', await response.json());
                 
                 // Refresh analytics display after a short delay
                 setTimeout(loadAnalytics, 500);
             } catch (error) {
-                console.error('Error submitting feedback:', error);
+                console.log('Feedback blocked by ad blocker or unavailable - this is OK!');
             }
             
             // Mark feedback given for today
