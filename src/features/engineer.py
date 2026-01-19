@@ -14,12 +14,13 @@ class FeatureEngineer:
         self.form_matches = form_matches or config.FORM_MATCHES
         self.h2h_matches = h2h_matches or config.HEAD_TO_HEAD_MATCHES
     
-    def create_all_features(self, df):
+    def create_all_features(self, df, verbose=True):
         """
         Create all features for match prediction
         
         Args:
             df: Match DataFrame
+            verbose: Whether to print progress messages
         
         Returns:
             DataFrame with features
@@ -27,22 +28,27 @@ class FeatureEngineer:
         df = df.copy()
         df = df.sort_values("date").reset_index(drop=True)
         
-        print("Creating form features...")
+        if verbose:
+            print("Creating form features...")
         df = self._create_form_features(df)
         
-        print("Creating head-to-head features...")
+        if verbose:
+            print("Creating head-to-head features...")
         df = self._create_h2h_features(df)
         
-        print("Creating team strength features...")
+        if verbose:
+            print("Creating team strength features...")
         df = self._create_strength_features(df)
         
-        print("Creating match context features...")
+        if verbose:
+            print("Creating match context features...")
         df = self._create_context_features(df)
         
         # Remove rows with NaN (early matches without history)
         initial_rows = len(df)
         df = df.dropna()
-        print(f"Removed {initial_rows - len(df)} matches without sufficient history")
+        if verbose:
+            print(f"Removed {initial_rows - len(df)} matches without sufficient history")
         
         return df
     

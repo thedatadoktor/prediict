@@ -12,6 +12,7 @@ sys.path.append(str(Path(__file__).parent))
 
 from src.data.collector import FootballDataCollector
 from src.data.csv_collector import FootballDataCSVCollector
+from src.data.odds_collector import OddsCollector
 from src.data.preprocessor import DataPreprocessor
 from src.features.engineer import FeatureEngineer
 from src.models.xgboost_model import XGBoostModel
@@ -270,11 +271,39 @@ def make_predictions(args):
     else:
         print("No high confidence predictions found.")
     
-    # Note about odds
-    print("\n" + "="*80)
-    print("NOTE: To identify value bets, add bookmaker odds data")
-    print("See odds_analyzer.py for implementation details")
-    print("="*80 + "\n")
+    # Fetch bookmaker odds and identify value bets
+    if args.odds:
+        print("\n" + "="*80)
+        print("FETCHING BOOKMAKER ODDS & IDENTIFYING VALUE BETS")
+        print("="*80 + "\n")
+        
+        odds_collector = OddsCollector()
+        odds_data = odds_collector.get_multiple_leagues(leagues)
+        
+        if odds_data:
+            odds_collector.display_odds(odds_data)
+            
+            # Analyze value bets
+            analyzer = OddsAnalyzer()
+            value_bets = analyzer.find_value_bets(predictions, odds_data)
+            
+            if value_bets:
+                analyzer.display_value_bets(value_bets, top_n=10)
+                
+                # Save to CSV
+                value_df = analyzer.to_dataframe(value_bets)
+                output_file = config.DATA_DIR / f"value_bets_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                value_df.to_csv(output_file, index=False)
+                print(f"\n✓ Value bets saved to {output_file}")
+            else:
+                print("No value bets found with current criteria.")
+        else:
+            print("Could not fetch odds data. Check your ODDS_API_KEY in .env")
+    else:
+        print("\n" + "="*80)
+        print("NOTE: Add --odds flag to fetch bookmaker odds and identify value bets")
+        print("Get free API key from: https://the-odds-api.com/")
+        print("="*80 + "\n")
 
 
 def run_backtest(args):
@@ -378,6 +407,8 @@ Examples:
     parser.add_argument("--days", type=int, help="Days ahead for upcoming matches (default: 7)")
     parser.add_argument("--start-date", type=str, help="Backtest start date (YYYY-MM-DD)")
     parser.add_argument("--end-date", type=str, help="Backtest end date (YYYY-MM-DD)")
+    parser.add_argument("--odds", action="store_true", 
+                       help="Fetch bookmaker odds and identify value bets (requires ODDS_API_KEY)")
     
     args = parser.parse_args()
     

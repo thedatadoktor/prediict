@@ -85,7 +85,7 @@ FORM_MATCHES = 5  # Number of recent matches for form calculation
 HEAD_TO_HEAD_MATCHES = 10  # Number of H2H matches to consider
 
 # Prediction thresholds
-MIN_CONFIDENCE = 0.60  # Minimum probability to consider a prediction (increased)
+MIN_CONFIDENCE = 0.58  # Minimum probability to consider a prediction (58% = reasonable edge)
 VALUE_BET_THRESHOLD = 0.05  # Minimum edge over bookmaker odds (5%)
 HIGH_CONFIDENCE_THRESHOLD = 0.70  # High confidence predictions
 

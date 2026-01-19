@@ -7,6 +7,15 @@ import numpy as np
 import config
 
 
+def normalize_team_name_for_odds(team_name):
+    """Normalize team names for matching with odds API"""
+    # Remove common suffixes
+    team_name = team_name.replace(" FC", "").replace(" AFC", "")
+    team_name = team_name.replace(" United", "")
+    team_name = team_name.replace("& Hove Albion", "and Hove Albion")
+    return team_name.strip()
+
+
 class OddsAnalyzer:
     """Analyzes betting odds and identifies value bets"""
     
@@ -105,20 +114,37 @@ class OddsAnalyzer:
         value_bets = []
         
         for pred in predictions:
-            # Get match identifier
-            match_key = f"{pred['home_team']} vs {pred['away_team']}"
+            # Normalize team names for matching
+            home_norm = normalize_team_name_for_odds(pred['home_team'])
+            away_norm = normalize_team_name_for_odds(pred['away_team'])
             
-            # Skip if no odds data available
-            if match_key not in odds_data and "match_id" not in pred:
+            # Try multiple match key formats
+            possible_keys = [
+                f"{pred['home_team']} vs {pred['away_team']}",
+                f"{home_norm} vs {away_norm}",
+                # Odds API format
+                f"{home_norm} vs {away_norm}".replace(" United", ""),
+            ]
+            
+            # Find matching odds
+            odds = None
+            for key in possible_keys:
+                if key in odds_data:
+                    odds = odds_data[key]
+                    break
+            
+            # Also try fuzzy matching
+            if odds is None:
+                for odds_key in odds_data.keys():
+                    if home_norm.lower() in odds_key.lower() and away_norm.lower() in odds_key.lower():
+                        odds = odds_data[odds_key]
+                        break
+            
+            if odds is None:
                 continue
             
-            # Get odds
-            if "match_id" in pred and pred["match_id"] in odds_data:
-                odds = odds_data[pred["match_id"]]
-            elif match_key in odds_data:
-                odds = odds_data[match_key]
-            else:
-                continue
+            # Create match key for display
+            match_display = f"{pred['home_team']} vs {pred['away_team']}"
             
             # Analyze each outcome
             outcomes = [
@@ -145,7 +171,7 @@ class OddsAnalyzer:
                     kelly_stake = self.calculate_kelly_stake(model_prob, bookmaker_odds)
                     
                     value_bet = {
-                        "match": match_key,
+                        "match": match_display,
                         "home_team": pred["home_team"],
                         "away_team": pred["away_team"],
                         "date": pred.get("date", ""),

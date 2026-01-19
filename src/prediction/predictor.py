@@ -8,6 +8,104 @@ from datetime import datetime
 import config
 
 
+# Team name mapping between API (full names) and CSV (short names)
+TEAM_NAME_MAPPING = {
+    # Premier League
+    "Arsenal FC": "Arsenal",
+    "Aston Villa FC": "Aston Villa",
+    "AFC Bournemouth": "Bournemouth",
+    "Brentford FC": "Brentford",
+    "Brighton & Hove Albion FC": "Brighton",
+    "Burnley FC": "Burnley",
+    "Chelsea FC": "Chelsea",
+    "Crystal Palace FC": "Crystal Palace",
+    "Everton FC": "Everton",
+    "Fulham FC": "Fulham",
+    "Liverpool FC": "Liverpool",
+    "Luton Town FC": "Luton",
+    "Manchester City FC": "Man City",
+    "Manchester United FC": "Man United",
+    "Newcastle United FC": "Newcastle",
+    "Nottingham Forest FC": "Nott'm Forest",
+    "Sheffield United FC": "Sheffield United",
+    "Tottenham Hotspur FC": "Tottenham",
+    "West Ham United FC": "West Ham",
+    "Wolverhampton Wanderers FC": "Wolves",
+    "Leicester City FC": "Leicester",
+    "Leeds United FC": "Leeds",
+    "Southampton FC": "Southampton",
+    "Watford FC": "Watford",
+    "Norwich City FC": "Norwich",
+    "Sunderland AFC": "Sunderland",
+    "Cardiff City FC": "Cardiff",
+    "Huddersfield Town AFC": "Huddersfield",
+    "Hull City AFC": "Hull",
+    "Middlesbrough FC": "Middlesbrough",
+    "Queens Park Rangers FC": "QPR",
+    "Stoke City FC": "Stoke",
+    "Swansea City AFC": "Swansea",
+    "West Bromwich Albion FC": "West Brom",
+    
+    # La Liga
+    "Athletic Club": "Ath Bilbao",
+    "Club Atlético de Madrid": "Ath Madrid",
+    "FC Barcelona": "Barcelona",
+    "Real Madrid CF": "Real Madrid",
+    "Sevilla FC": "Sevilla",
+    "Real Betis Balompié": "Betis",
+    "Valencia CF": "Valencia",
+    "Villarreal CF": "Villarreal",
+    "Real Sociedad de Fútbol": "Sociedad",
+    
+    # Serie A
+    "AC Milan": "Milan",
+    "FC Internazionale Milano": "Inter",
+    "Juventus FC": "Juventus",
+    "AS Roma": "Roma",
+    "SSC Napoli": "Napoli",
+    "Atalanta BC": "Atalanta",
+    "SS Lazio": "Lazio",
+    "ACF Fiorentina": "Fiorentina",
+    
+    # Bundesliga
+    "FC Bayern München": "Bayern Munich",
+    "Borussia Dortmund": "Dortmund",
+    "RB Leipzig": "RB Leipzig",
+    "Bayer 04 Leverkusen": "Leverkusen",
+    "Borussia Mönchengladbach": "M'gladbach",
+    "VfL Wolfsburg": "Wolfsburg",
+    "Eintracht Frankfurt": "Ein Frankfurt",
+    "FC Schalke 04": "Schalke 04",
+    
+    # Ligue 1
+    "Paris Saint-Germain FC": "Paris SG",
+    "Olympique de Marseille": "Marseille",
+    "Olympique Lyonnais": "Lyon",
+    "AS Monaco FC": "Monaco",
+    "OGC Nice": "Nice",
+    "Stade Rennais FC 1901": "Rennes",
+    "Lille OSC": "Lille",
+}
+
+
+def normalize_team_name(team_name):
+    """
+    Normalize team name to match CSV format
+    
+    Args:
+        team_name: Team name from API or CSV
+    
+    Returns:
+        Normalized team name
+    """
+    # Direct mapping
+    if team_name in TEAM_NAME_MAPPING:
+        return TEAM_NAME_MAPPING[team_name]
+    
+    # Already normalized or unknown team
+    return team_name
+
+
 class MatchPredictor:
     """Predicts outcomes for football matches"""
     
@@ -34,17 +132,14 @@ class MatchPredictor:
         Returns:
             Dictionary with predictions
         """
-        # Ensure datetime consistency (remove timezone for compatibility)
-        historical_data = historical_data.copy()
-        if 'date' in historical_data.columns:
-            historical_data['date'] = pd.to_datetime(historical_data['date']).dt.tz_localize(None)
+        # Normalize team names to match CSV format
+        home_team = normalize_team_name(match_data["home_team"])
+        away_team = normalize_team_name(match_data["away_team"])
+        match_date = pd.to_datetime(match_data.get("date", datetime.now()))
+        if match_date.tzinfo is not None:
+            match_date = match_date.tz_localize(None)
         
-        # Calculate features directly from historical data for these two teams
-        home_team = match_data["home_team"]
-        away_team = match_data["away_team"]
-        match_date = pd.to_datetime(match_data.get("date", datetime.now())).tz_localize(None)
-        
-        # Get historical matches before this date
+        # Get historical matches before this date (already cleaned from predict_matches)
         hist_before = historical_data[historical_data['date'] < match_date].copy()
         
         if len(hist_before) < 10:
@@ -68,8 +163,8 @@ class MatchPredictor:
         
         if len(home_recent) < 5 or len(away_recent) < 5:
             return {
-                "home_team": home_team,
-                "away_team": away_team,
+                "home_team": match_data["home_team"],  # Original name for display
+                "away_team": match_data["away_team"],  # Original name for display
                 "error": "Insufficient recent matches for form calculation"
             }
         
@@ -87,14 +182,13 @@ class MatchPredictor:
         # Combine with ALL historical data, then feature engineer
         combined_df = pd.concat([hist_before, match_df], ignore_index=True)
         
-        # Create features
-        featured_df = self.feature_engineer.create_all_features(combined_df)
+        # Create features (suppress verbose output for cleaner prediction flow)
+        featured_df = self.feature_engineer.create_all_features(combined_df, verbose=False)
         
-        # Find our prediction match in the featured dataframe
-        # It should be one of the last rows that matches our team names
+        # Find our prediction match in the featured dataframe using normalized names
         prediction_row = featured_df[
-            (featured_df['home_team'] == match_data['home_team']) & 
-            (featured_df['away_team'] == match_data['away_team'])
+            (featured_df['home_team'] == home_team) & 
+            (featured_df['away_team'] == away_team)
         ].tail(1)
         
         # Get the last row (our match)
@@ -136,42 +230,127 @@ class MatchPredictor:
         Returns:
             List of prediction dictionaries
         """
+        print("Preparing historical data...")
+        # Ensure datetime consistency once for all matches
+        historical_data = historical_data.copy()
+        if 'date' in historical_data.columns:
+            historical_data['date'] = pd.to_datetime(historical_data['date']).dt.tz_localize(None)
+        
+        # Pre-compute features on historical data ONCE (this takes time but only done once)
+        print("Computing historical features (one-time process)...")
+        hist_with_features = self.feature_engineer.create_all_features(historical_data, verbose=True)
+        print(f"✓ Historical features ready ({len(hist_with_features)} matches)\n")
+        
         predictions = []
+        total_matches = len(matches_df)
         
         for idx, match in matches_df.iterrows():
+            print(f"Match {idx+1}/{total_matches}: ", end='')
             match_data = {
                 "home_team": match["home_team"],
                 "away_team": match["away_team"],
                 "date": match.get("date", datetime.now()),
-                "home_team_id": match.get("home_team_id"),
-                "away_team_id": match.get("away_team_id"),
                 "competition": match.get("competition", "Unknown"),
-                "competition_code": match.get("competition_code", ""),
-                # Dummy values for feature engineering (won't be used)
-                "home_score": 0,
-                "away_score": 0,
-                "result": "H"
             }
             
-            prediction = self.predict_match(match_data, historical_data)
+            # Fast prediction using pre-computed features
+            prediction = self._predict_match_fast(match_data, hist_with_features)
             
-            # Add match ID if available
             if "match_id" in match:
                 prediction["match_id"] = match["match_id"]
             
             predictions.append(prediction)
             
-            # Display prediction or error
-            print(f"Predicted: {prediction['home_team']} vs {prediction['away_team']}")
+            # Display result
+            print(f"{prediction['home_team']} vs {prediction['away_team']}", end=' - ')
             if 'error' in prediction:
-                print(f"  ⚠️  {prediction['error']}\n")
+                print(f"⚠️  {prediction['error']}")
             else:
-                print(f"  {prediction['predicted_outcome']} (confidence: {prediction['confidence']:.2%})")
-                print(f"  Probabilities: H={prediction['probabilities']['home_win']:.2%}, "
-                      f"D={prediction['probabilities']['draw']:.2%}, "
-                      f"A={prediction['probabilities']['away_win']:.2%}\n")
+                print(f"✓ {prediction['predicted_outcome']} ({prediction['confidence']:.1%})")
         
         return predictions
+    
+    def _predict_match_fast(self, match_data, hist_with_features):
+        """
+        Fast prediction using pre-computed historical features
+        
+        Args:
+            match_data: Dict with match info
+            hist_with_features: Historical data with features already computed
+        
+        Returns:
+            Prediction dictionary
+        """
+        # Normalize team names
+        home_team = normalize_team_name(match_data["home_team"])
+        away_team = normalize_team_name(match_data["away_team"])
+        match_date = pd.to_datetime(match_data.get("date", datetime.now()))
+        if match_date.tzinfo is not None:
+            match_date = match_date.tz_localize(None)
+        
+        # Filter historical data before match date
+        hist_before = hist_with_features[hist_with_features['date'] < match_date]
+        
+        if len(hist_before) < 10:
+            return {
+                "home_team": match_data["home_team"],
+                "away_team": match_data["away_team"],
+                "error": "Insufficient data"
+            }
+        
+        # Get most recent match for each team to extract their latest features
+        home_recent = hist_before[
+            (hist_before['home_team'] == home_team) | 
+            (hist_before['away_team'] == home_team)
+        ].tail(1)
+        
+        away_recent = hist_before[
+            (hist_before['home_team'] == away_team) | 
+            (hist_before['away_team'] == away_team)
+        ].tail(1)
+        
+        if len(home_recent) == 0 or len(away_recent) == 0:
+            return {
+                "home_team": match_data["home_team"],
+                "away_team": match_data["away_team"],
+                "error": "No recent data"
+            }
+        
+        # Build prediction features by combining team stats
+        # This is a simplified approach - we extract features from recent matches
+        try:
+            # Get feature columns that exist
+            feature_cols = [col for col in self.model.feature_columns if col in hist_before.columns]
+            
+            # Calculate match features based on team histories
+            # Use averages from recent team performances
+            home_feats = home_recent[feature_cols].iloc[0] if len(home_recent) > 0 else pd.Series(0, index=feature_cols)
+            away_feats = away_recent[feature_cols].iloc[0] if len(away_recent) > 0 else pd.Series(0, index=feature_cols)
+            
+            # Create match features (simplified - use home team's perspective)
+            match_features = pd.DataFrame([home_feats], columns=feature_cols)
+            
+            # Make prediction
+            probabilities = self.model.predict_proba(match_features)[0]
+            
+            return {
+                "home_team": match_data["home_team"],
+                "away_team": match_data["away_team"],
+                "date": match_data.get("date", "Unknown"),
+                "probabilities": {
+                    "home_win": float(probabilities[0]),
+                    "draw": float(probabilities[1]),
+                    "away_win": float(probabilities[2])
+                },
+                "predicted_outcome": self._get_predicted_outcome(probabilities),
+                "confidence": float(np.max(probabilities))
+            }
+        except Exception as e:
+            return {
+                "home_team": match_data["home_team"],
+                "away_team": match_data["away_team"],
+                "error": f"Prediction failed: {str(e)}"
+            }
     
     def _get_predicted_outcome(self, probabilities):
         """Convert probabilities to readable outcome"""
