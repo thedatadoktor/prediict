@@ -747,9 +747,9 @@
                 const helpful = await helpfulRes.json();
                 const notHelpful = await notHelpfulRes.json();
                 
-                const totalVisitors = visitors.count || 0;
-                const helpfulCount = helpful.count || 0;
-                const notHelpfulCount = notHelpful.count || 0;
+                const totalVisitors = visitors.data?.up_count || 0;
+                const helpfulCount = helpful.data?.up_count || 0;
+                const notHelpfulCount = notHelpful.data?.up_count || 0;
                 
                 document.getElementById('total-visitors').textContent = totalVisitors.toLocaleString();
                 document.getElementById('helpful-count').textContent = helpfulCount.toLocaleString();
