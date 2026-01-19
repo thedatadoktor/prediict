@@ -759,11 +759,12 @@
                 const rate = total > 0 ? Math.round((helpfulCount / total) * 100) : 0;
                 document.getElementById('satisfaction-rate').textContent = rate + '%';
             } catch (error) {
-                console.error('Error loading analytics:', error);
-                document.getElementById('total-visitors').textContent = '0';
-                document.getElementById('helpful-count').textContent = '0';
-                document.getElementById('not-helpful-count').textContent = '0';
-                document.getElementById('satisfaction-rate').textContent = '0%';
+                console.log('Analytics blocked by ad blocker or unavailable - this is OK!');
+                // Show dashes when analytics are blocked (ad blocker, privacy extensions, etc.)
+                document.getElementById('total-visitors').textContent = '-';
+                document.getElementById('helpful-count').textContent = '-';
+                document.getElementById('not-helpful-count').textContent = '-';
+                document.getElementById('satisfaction-rate').textContent = '-';
             }
         }
         
