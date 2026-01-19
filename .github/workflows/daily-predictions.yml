@@ -36,10 +36,9 @@ jobs:
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
-          ls -la src/
-          ls -la src/data/
-          python -c "import sys; print('Python path:', sys.path)"
+          cd ${{ github.workspace }}
           python main.py --predict --odds --leagues PL --days 7
       
       - name: Generate HTML page
