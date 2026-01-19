@@ -194,12 +194,85 @@
             border-radius: 10px;
         }
         
+        .feedback-section {
+            background: rgba(255,255,255,0.95);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 30px 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .feedback-title {
+            color: #333;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+        
+        .feedback-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .feedback-btn {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: bold;
+        }
+        
+        .feedback-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        
+        .thumbs-up {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .thumbs-down {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .visitor-count {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        
+        .thank-you {
+            display: none;
+            background: #10b981;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
+        
         @media (max-width: 768px) {
             .header h1 {
                 font-size: 1.8em;
             }
             .bet-details {
                 grid-template-columns: 1fr;
+            }
+            .feedback-buttons {
+                flex-direction: column;
             }
         }
     </style>
@@ -210,6 +283,7 @@
             <h1>⚽ Football Value Bets</h1>
             <div class="subtitle">AI-Powered Predictions with Proven Edge</div>
             <div class="update-time">📅 Updated: January 19, 2026 at 02:10 PM</div>
+            <div class="visitor-count">👥 <span id="visitor-count">Loading...</span> visitors today</div>
         </div>
         
         <div class="stats-bar">
@@ -553,6 +627,22 @@
             </div>
         </div>
 
+        <div class="feedback-section">
+            <div class="feedback-title">💬 Did our predictions help you?</div>
+            <p style="color: #666; margin-bottom: 10px;">Your feedback helps us improve!</p>
+            <div class="feedback-buttons">
+                <button class="feedback-btn thumbs-up" onclick="submitFeedback('helpful')">
+                    <span style="font-size: 1.5em;">👍</span>
+                    <span>Yes, Helpful!</span>
+                </button>
+                <button class="feedback-btn thumbs-down" onclick="submitFeedback('not-helpful')">
+                    <span style="font-size: 1.5em;">👎</span>
+                    <span>Not Helpful</span>
+                </button>
+            </div>
+            <div id="thank-you-message" class="thank-you"></div>
+        </div>
+
         <div class="footer">
             <h3>💡 How to Use These Predictions</h3>
             <p>1. Check odds on your bookmaker (Bet365, William Hill, etc.)</p>
@@ -572,5 +662,108 @@
             </p>
         </div>
     </div>
+    
+    <script>
+        // Simple visitor counter using localStorage
+        function updateVisitorCount() {
+            // Get today's date as key
+            const today = new Date().toDateString();
+            const visitorKey = 'visitor_' + today;
+            
+            // Get or initialize today's count
+            let count = parseInt(localStorage.getItem(visitorKey) || '0');
+            
+            // Check if this user visited today
+            const userVisitKey = 'user_visited_' + today;
+            if (!sessionStorage.getItem(userVisitKey)) {
+                count++;
+                localStorage.setItem(visitorKey, count.toString());
+                sessionStorage.setItem(userVisitKey, 'true');
+            }
+            
+            // Display count
+            document.getElementById('visitor-count').textContent = count + (count === 1 ? ' visitor' : ' visitors');
+            
+            // Clean up old dates (keep last 7 days)
+            cleanupOldCounts();
+        }
+        
+        function cleanupOldCounts() {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('visitor_')) {
+                    const dateStr = key.replace('visitor_', '');
+                    const date = new Date(dateStr);
+                    if (date < sevenDaysAgo) {
+                        localStorage.removeItem(key);
+                    }
+                }
+            }
+        }
+        
+        // Feedback system
+        function submitFeedback(type) {
+            // Hide buttons
+            const buttons = document.querySelector('.feedback-buttons');
+            const thankYou = document.getElementById('thank-you-message');
+            
+            buttons.style.display = 'none';
+            thankYou.style.display = 'block';
+            
+            if (type === 'helpful') {
+                thankYou.innerHTML = '🎉 Thank you! We\'re glad our predictions helped you!';
+                thankYou.style.background = '#10b981';
+            } else {
+                thankYou.innerHTML = '💡 Thanks for your feedback! We\'re working hard to improve our predictions.';
+                thankYou.style.background = '#f59e0b';
+            }
+            
+            // Store feedback in localStorage
+            const feedbackKey = 'feedback_' + new Date().toISOString().split('T')[0];
+            const feedback = JSON.parse(localStorage.getItem(feedbackKey) || '{"helpful": 0, "not-helpful": 0}');
+            feedback[type]++;
+            localStorage.setItem(feedbackKey, JSON.stringify(feedback));
+            
+            // Optional: Send to Google Analytics if available
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'feedback', {
+                    'event_category': 'User Feedback',
+                    'event_label': type,
+                    'value': 1
+                });
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateVisitorCount();
+            
+            // Check if user already gave feedback today
+            const today = new Date().toISOString().split('T')[0];
+            if (sessionStorage.getItem('feedback_given_' + today)) {
+                document.querySelector('.feedback-buttons').style.display = 'none';
+                document.getElementById('thank-you-message').innerHTML = '✅ Thank you for your earlier feedback!';
+                document.getElementById('thank-you-message').style.display = 'block';
+                document.getElementById('thank-you-message').style.background = '#6366f1';
+            }
+        });
+        
+        // Google Analytics (Optional - replace with your GA4 ID)
+        // Uncomment and add your Google Analytics ID below:
+        /*
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-XXXXXXXXXX');  // Replace with your GA4 ID
+        */
+    </script>
+    
+    <!-- Optional: Add Google Analytics script -->
+    <!-- Uncomment and replace G-XXXXXXXXXX with your actual GA4 measurement ID
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    -->
 </body>
 </html>
