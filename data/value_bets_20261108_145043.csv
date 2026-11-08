@@ -1,0 +1,2 @@
+match,home_team,away_team,date,outcome,model_probability,bookmaker_odds,bookmaker_probability,edge,expected_value,kelly_stake_pct,confidence
+Manchester United FC vs Aston Villa FC,Manchester United FC,Aston Villa FC,2026-11-08 16:30:00+00:00,Away Win,0.599145770072937,3.25,0.3076923076923077,0.2914534623806293,0.9472237527370453,10.524708363744947,0.599145770072937
